@@ -1,0 +1,4 @@
+gym==0.18
+pygame
+stable-baselines3
+tensorflow==1.14
