@@ -53,9 +53,9 @@ class Snake:
         # a dictionary to convert direction to appropriate step size in the x and y direction
         self.direction_to_step = {
             Direction.RIGHT: np.array((self.block_size, 0)),
-            Direction.UP: np.array((0, self.block_size)),
+            Direction.UP: np.array((0, -self.block_size)),
             Direction.LEFT: np.array((-self.block_size, 0)),
-            Direction.DOWN: np.array((0, -self.block_size))
+            Direction.DOWN: np.array((0, self.block_size))
         }
 
         self.reset()
@@ -164,14 +164,13 @@ class Wall:
         pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size
 
         direction = np.random.randint(0, 2)
-        if direction == 0:
-            # right
+        if direction == 0:  # right
             step = np.array((self.block_size, 0))
         else:  # down
             step = np.array((0, self.block_size))
 
         new_pos = pos + step
-        # print(pos, direction, step, new_pos)
+
         # if pos or new_pos is equal to any segment of the body, we generate another pos and new_pos
         while (pos == body).all(axis=1).any() or (new_pos == body).all(axis=1).any():
             pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size

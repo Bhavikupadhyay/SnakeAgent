@@ -30,6 +30,7 @@ class SnakeEnv(gym.Env):
         fruit: a Fruit object
         score: an attribute to maintain score
         """
+        self.step_count = 0
         self.window_size = window_size
         self.block_size = block_size
         self.score = 0
@@ -70,18 +71,21 @@ class SnakeEnv(gym.Env):
             reward = -100
             self.log_score()
         else:
-            if self.snake.eat_check(fruit=self.fruit, walls=self.walls.segments):
-                reward = 1
+            head = np.array(self.snake.body[-1])
+            fruit = np.array(self.fruit.pos)
+            dist = np.power(np.sum(fruit - head), 2)
+
+            if (self.snake.eat_check(fruit=self.fruit, walls=self.walls.segments)):
+                reward = 5
                 self.score += 1
                 # after every 10 fruits, add a wall segment
                 if self.score % 10:
                     self.walls.add_segment(body=self.snake.body)
             else:
-                reward = 0
+                reward = -dist * 0.0001
 
         obs = self._get_obs()
         info = self._get_info()
-
         return obs, reward, done, info
 
     def reset(self):
