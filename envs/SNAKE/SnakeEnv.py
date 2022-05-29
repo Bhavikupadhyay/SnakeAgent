@@ -33,14 +33,12 @@ class SnakeEnv(gym.Env):
         self.window_size = window_size
         self.block_size = block_size
         self.score = 0
-        self.snake = Snake(block_size, window_size, color=self.colors['blue'])
-        self.fruit = Fruit(block_size, window_size, color=self.colors['red'])
 
-        self.observation_space = spaces.Dict(
-            {
-                'window': spaces.Box(low=0, high=255, shape=(self.window_size, self.window_size, 3), dtype=np.uint8)
-            }
-        )
+        self.snake = Snake(block_size, window_size, color=self.colors['blue'])
+        self.walls = Wall(block_size, window_size, color=self.colors['black'], body=self.snake.body)
+        self.fruit = Fruit(block_size, window_size, color=self.colors['red'], body=self.snake.body, walls=self.walls.segments)
+
+        self.observation_space = spaces.Box(low=0, high=255, shape=(self.window_size, self.window_size, 3), dtype=np.uint8)
         self.action_space = spaces.Discrete(4)
 
         # window instance and clock are kept as None before initialising for the first time
@@ -64,16 +62,22 @@ class SnakeEnv(gym.Env):
         info: additional info
         """
         direction = self._action_to_direction[action]
-        self.snake.direction_change(direction)
+        self.snake.change_direction(inp_direction=direction)
         self.snake.move()
-
-        done = self.snake.dead_check()
+        self.step_count += 1
+        done = self.snake.is_dead(walls=self.walls.segments) or self.step_count >= 500
         if done:
-            reward = -50
+            reward = -100
             self.log_score()
         else:
-            reward = 1 if self.snake.eat_check(self.fruit) else 0
-            self.score += 1
+            if self.snake.eat_check(fruit=self.fruit, walls=self.walls.segments):
+                reward = 1
+                self.score += 1
+                # after every 10 fruits, add a wall segment
+                if self.score % 10:
+                    self.walls.add_segment(body=self.snake.body)
+            else:
+                reward = 0
 
         obs = self._get_obs()
         info = self._get_info()
@@ -87,8 +91,10 @@ class SnakeEnv(gym.Env):
         :return: obs: next observation
         """
         self.score = 0
+        self.step_count = 0
         self.snake.reset()
-        self.fruit.reset()
+        self.walls.reset(body=self.snake.body)
+        self.fruit.reset(body=self.snake.body, walls=self.walls.segments)
 
         return self._get_obs()
 
@@ -106,17 +112,14 @@ class SnakeEnv(gym.Env):
         }
 
     def _get_obs(self):
-
-        return {
-            'window': self.render(mode='rgb_array')
-        }
+        return self.render(mode='rgb_array')
 
     def log_score(self):
         """
         A function to log the score
         :return: None
         """
-        print(self.score)
+        print(self.score, self.step_count)
 
     def render(self, mode='human'):
         """
@@ -129,8 +132,10 @@ class SnakeEnv(gym.Env):
         """
         surface = pygame.Surface((self.window_size, self.window_size))
         surface.fill(self.colors['white'])
-        self.fruit.render(surface, pygame)
-        self.snake.render(surface, pygame)
+
+        self.fruit.render(surface)
+        self.snake.render(surface)
+        self.walls.render(surface)
 
         if mode == 'human':
             if self.window is None:

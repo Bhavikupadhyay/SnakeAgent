@@ -1,14 +1,15 @@
 import gym
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3 import DQN
+from stable_baselines.deepq import DQN
 import envs
 import numpy as np
+import tensorflow as tf
 
-env = make_vec_env('SnakeEnv-v0')
-
-model = DQN('MultiInputPolicy', env, verbose=1)
-model.learn(total_timesteps=10000, log_interval=4)
+env = gym.make('SnakeEnv-v0', window_size=256, block_size=8)
+policy_kwargs = dict(act_fun=tf.nn.relu, net_arch=[256, 128, 64, 32, 1])
+model = DQN('MlpPolicy', env, verbose=1, buffer_size=10000, policy_kwargs=policy_kwargs)
+model.learn(total_timesteps=14000, log_interval=4)
 print('Learned Model')
 
 #mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=10)
