@@ -31,6 +31,7 @@ class SnakeEnv(gym.Env):
         score: an attribute to maintain score
         """
         self.step_count = 0
+        self.distance = None
         self.window_size = window_size
         self.block_size = block_size
         self.score = 0
@@ -66,27 +67,35 @@ class SnakeEnv(gym.Env):
         self.snake.change_direction(inp_direction=direction)
         self.snake.move()
         self.step_count += 1
-        done = self.snake.is_dead(walls=self.walls.segments) or self.step_count >= 500
+        done = self.snake.is_dead(walls=self.walls.segments)
         if done:
             reward = -100
             self.log_score()
         else:
-            head = np.array(self.snake.body[-1])
-            fruit = np.array(self.fruit.pos)
-            dist = np.power(np.sum(fruit - head), 2)
-
-            if (self.snake.eat_check(fruit=self.fruit, walls=self.walls.segments)):
-                reward = 5
+            reward = self.get_changed_distance() * 0.1
+            if self.snake.eat_check(fruit=self.fruit, walls=self.walls.segments):
+                reward += 5
                 self.score += 1
                 # after every 10 fruits, add a wall segment
                 if self.score % 10:
                     self.walls.add_segment(body=self.snake.body)
-            else:
-                reward = -dist * 0.0001
 
         obs = self._get_obs()
         info = self._get_info()
         return obs, reward, done, info
+
+    def get_changed_distance(self):
+        head = np.array(self.snake.body[-1])
+        fruit = np.array(self.fruit.pos)
+
+        old_distance = self.distance
+        self.distance = np.power(np.sum(np.power((fruit-head)//self.block_size, 2)), 0.5)
+        # print(old_distance, self.distance, end=' ')
+        if old_distance is not None:
+            # print(old_distance - self.distance)
+            return old_distance - self.distance
+        else:
+            return 0
 
     def reset(self):
         """
@@ -96,6 +105,7 @@ class SnakeEnv(gym.Env):
         """
         self.score = 0
         self.step_count = 0
+        self.distance = None
         self.snake.reset()
         self.walls.reset(body=self.snake.body)
         self.fruit.reset(body=self.snake.body, walls=self.walls.segments)
