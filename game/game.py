@@ -3,16 +3,17 @@ import pygame
 
 pygame.init()
 pygame.display.init()
-window = pygame.display.set_mode((512, 512))
+window = pygame.display.set_mode((256, 256))
 pygame.display.set_caption('Snake')
 
-snake = Snake(16, 512, (0, 0, 255))
-walls = Wall(16, 512, (0, 0, 0), snake.body)
-fruit = Fruit(16, 512, (255, 0, 0), snake.body, walls.segments)
+snake = Snake(16, 256, (0, 0, 255))
+walls = Wall(16, 256, (128, 128, 128), snake.body)
+fruit = Fruit(16, 256, (255, 0, 0), snake.body, walls.segments)
 
 run = True
+score = 0
 while run:
-    pygame.time.delay(100)
+    pygame.time.delay(60)
 
     for event in pygame.event.get():
         run = not (event.type == pygame.QUIT)
@@ -28,12 +29,19 @@ while run:
         snake.change_direction(Direction.UP)
 
     snake.move()
-    snake.eat_check(fruit, walls.segments)
+    if snake.eat_check(fruit, walls.segments):
+        score += 1
+        if score % 3 == 0 and score > 0:
+            walls.add_segment(body=snake.body)
+
     if snake.is_dead(walls.segments):
-        font = pygame.font.SysFont('ariel', 60, True)
+        font = pygame.font.SysFont('ariel', 40, True)
         text = font.render('Game Over', True, (0, 255, 255))
-        text_rect = text.get_rect(center=(256, 256))
+        text_rect = text.get_rect(center=(128, 128))
         window.blit(text, text_rect)
+
+        print(score)
+        score = 0
 
         pygame.display.update()
         pygame.time.delay(2000)
@@ -42,7 +50,7 @@ while run:
         walls.reset(snake.body)
         fruit.reset(snake.body, walls.segments)
 
-    window.fill((255, 255, 255))
+    window.fill((0, 0, 0))
     snake.render(window)
     walls.render(window)
     fruit.render(window)

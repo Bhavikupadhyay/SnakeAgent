@@ -8,5 +8,5 @@ env = gym.make('SnakeEnv-v0')
 env.seed(42)
 env.action_space.seed(42)
 
-check_env(env)
+check_env(env, warn=True)
 print('Environment conforms to Stable Baselines and Gym Requirements')

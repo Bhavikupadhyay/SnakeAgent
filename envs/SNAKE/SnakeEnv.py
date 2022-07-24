@@ -1,3 +1,4 @@
+import cv2
 import pygame
 import gym
 from gym import spaces
@@ -8,7 +9,7 @@ import numpy as np
 class SnakeEnv(gym.Env):
     metadata = {
         'render_modes': ['human', 'rgb_array'],
-        'render_fps': 4
+        'render_fps': 24
     }
 
     colors = {
@@ -16,7 +17,8 @@ class SnakeEnv(gym.Env):
         'red': (255, 0, 0),
         'green': (0, 255, 0),
         'blue': (0, 0, 255),
-        'white': (255, 255, 255)
+        'white': (255, 255, 255),
+        'gray': (128, 128, 128)
     }
 
     def __init__(self, window_size: int = 512, block_size: int = 16):
@@ -35,12 +37,13 @@ class SnakeEnv(gym.Env):
         self.window_size = window_size
         self.block_size = block_size
         self.score = 0
+        self.last_eaten = 0
 
         self.snake = Snake(block_size, window_size, color=self.colors['blue'])
-        self.walls = Wall(block_size, window_size, color=self.colors['black'], body=self.snake.body)
+        self.walls = Wall(block_size, window_size, color=self.colors['gray'], body=self.snake.body)
         self.fruit = Fruit(block_size, window_size, color=self.colors['red'], body=self.snake.body, walls=self.walls.segments)
 
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.window_size, self.window_size, 3), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(3, 64, 64), dtype=np.uint8)
         self.action_space = spaces.Discrete(4)
 
         # window instance and clock are kept as None before initialising for the first time
@@ -67,22 +70,55 @@ class SnakeEnv(gym.Env):
         self.snake.change_direction(inp_direction=direction)
         self.snake.move()
         self.step_count += 1
-        done = self.snake.is_dead(walls=self.walls.segments)
+
+        done = self.snake.is_dead(walls=self.walls.segments) or self.step_count - self.last_eaten >= 300
+
         if done:
-            reward = -100
+            # negative reward for dying
+            reward = -1
+            # higher negative reward for entering into a loop
+            if self.step_count - self.step_count >= 300:
+                reward = -5
             self.log_score()
         else:
-            reward = self.get_changed_distance() * 0.1
-            if self.snake.eat_check(fruit=self.fruit, walls=self.walls.segments):
-                reward += 5
-                self.score += 1
-                # after every 10 fruits, add a wall segment
-                if self.score % 10:
-                    self.walls.add_segment(body=self.snake.body)
+            reward = self._get_reward()
 
         obs = self._get_obs()
         info = self._get_info()
         return obs, reward, done, info
+
+    def _get_reward(self):
+        reward = 0
+        # adding reward according to direction moved
+        reward += self.get_changed_distance() * 0.1
+
+        # reward if food is eaten
+        if self.snake.eat_check(fruit=self.fruit):
+            # update the last eaten and distance from food for the other negative reward measures
+            self.last_eaten = self.step_count
+            self.distance = None
+
+            # positive reward for food being eaten
+            reward += 1 + (self.score / 10)
+
+            # updating the score and adding another wall segment if the score is a multiple of 5
+            self.score += 1
+            if self.score > 0 and self.score % 3 == 0:
+                self.walls.add_segment(self.snake.body)
+
+            self.fruit.reset(body=self.snake.body, walls=self.walls.segments)
+
+        # increasing negative reward if food is not eaten for a few steps
+        steps_since_food = self.step_count - self.last_eaten
+        divisor = 15 * self.snake.length
+        if steps_since_food % divisor == 0 and steps_since_food > divisor:
+            print(steps_since_food)
+        reward -= 0.1 * (steps_since_food // divisor)
+
+        # reward according to danger ahead
+        reward -= 0.1 if self.snake.check_danger_ahead(walls=self.walls.segments) else 0
+
+        return reward
 
     def get_changed_distance(self):
         head = np.array(self.snake.body[-1])
@@ -90,9 +126,8 @@ class SnakeEnv(gym.Env):
 
         old_distance = self.distance
         self.distance = np.power(np.sum(np.power((fruit-head)//self.block_size, 2)), 0.5)
-        # print(old_distance, self.distance, end=' ')
+
         if old_distance is not None:
-            # print(old_distance - self.distance)
             return old_distance - self.distance
         else:
             return 0
@@ -105,6 +140,7 @@ class SnakeEnv(gym.Env):
         """
         self.score = 0
         self.step_count = 0
+        self.last_eaten = 0
         self.distance = None
         self.snake.reset()
         self.walls.reset(body=self.snake.body)
@@ -126,14 +162,26 @@ class SnakeEnv(gym.Env):
         }
 
     def _get_obs(self):
-        return self.render(mode='rgb_array')
+        window = self.render(mode='rgb_array')
+        window = cv2.resize(window, (64, 64))
+
+        window = window.astype(np.uint8)
+        window = np.transpose(
+            window,
+            axes=(2, 0, 1)
+        )
+
+        return window
 
     def log_score(self):
         """
         A function to log the score
         :return: None
         """
-        print(self.score, self.step_count)
+        print('Score: ', self.score, 'Step Count:', self.step_count)
+
+    def get_logging_details(self):
+        return self.score, self.step_count
 
     def render(self, mode='human'):
         """
@@ -142,10 +190,10 @@ class SnakeEnv(gym.Env):
 
         :param mode: mode of rendering; can be one of two values: 'human' or 'rgb_array'
 
-        :return: returns the rbg array representing the game window when used with mode='rgb_array'
+        :return: returns the rbg array representing the game window when used with mode='rgb_array' otherwise simply displays the window
         """
         surface = pygame.Surface((self.window_size, self.window_size))
-        surface.fill(self.colors['white'])
+        surface.fill(self.colors['black'])
 
         self.fruit.render(surface)
         self.snake.render(surface)
@@ -165,7 +213,5 @@ class SnakeEnv(gym.Env):
 
             self.clock.tick(self.metadata['render_fps'])
         else:  # 'rgb_array'
-            return np.transpose(
-                np.array(pygame.surfarray.pixels3d(surface), dtype=np.uint8),
-                axes=(1, 0, 2)
-            )
+            surface = np.array(pygame.surfarray.pixels3d(surface), dtype=np.uint8)
+            return surface

@@ -17,15 +17,14 @@ print('Learned Model')
 
 obs = env.reset()
 env.seed(42)
-env.action_space(42)
+env.action_space.seed(42)
 print('Beginning working wih trained agent')
-for i in range(1000):
+for i in range(200):
     env.render()
     action, _states = model.predict(obs, deterministic=True)
-    print(i, type(action))
     obs, reward, done, info = env.step(action)
     env.render()
     if done:
-        obs, info = env.reset()
+        obs = env.reset()
 env.close()
 print('Rendering done')

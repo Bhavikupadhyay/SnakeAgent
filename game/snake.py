@@ -26,8 +26,13 @@ class Fruit:
         body = np.array(body)
         walls = np.array(walls)
 
-        while (pos == body).all(axis=1).any() or (pos == walls).all(axis=1).any():
-            pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size
+        if len(walls) != 0:
+            while (pos == body).all(axis=1).any() or (pos == walls).all(axis=1).any():
+                pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size
+
+        else:
+            while (pos == body).all(axis=1).any():
+                pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size
 
         self.pos = tuple(pos)
 
@@ -100,12 +105,11 @@ class Snake:
         if self.length < len(self.body):
             self.body.pop(0)
 
-    def eat_check(self, fruit: Fruit, walls: list) -> bool:
+    def eat_check(self, fruit: Fruit) -> bool:
         head = self.body[-1]
 
         if head[0] == fruit.pos[0] and head[1] == fruit.pos[1]:
             self.length += 1
-            fruit.reset(body=self.body, walls=walls)
             return True
         return False
 
@@ -129,12 +133,26 @@ class Snake:
         head = np.array(self.body[-1])
         walls = np.array(walls)
 
-        if (head == walls).all(axis=1).any():
+        if len(walls) != 0 and (head == walls).all(axis=1).any():
             return True
         return False
 
     def is_dead(self, walls: list) -> bool:
         return self.bite_check() or self.border_check() or self.wall_check(walls)
+
+    def check_danger_ahead(self, walls: list) -> bool:
+        head = np.array(self.body[-1], dtype='int')
+        next_step = head + self.direction_to_step[self.direction]
+        tail = np.array(self.body[:-1], dtype='int')
+        walls = np.array(walls, dtype='int')
+
+        if len(walls) != 0 and (next_step == walls).all(axis=1).any():
+            return True
+        elif next_step[0] <= 0 or next_step[1] <= 0 or next_step[0] >= self.window_size or next_step[1] >= self.window_size:
+            return True
+        elif (next_step == tail).all(axis=1).any():
+            return True
+        return False
 
 
 class Wall:
@@ -142,7 +160,7 @@ class Wall:
     length = None
     segment_length = None
 
-    def __init__(self, block_size: int, window_size: int, color: tuple, body: tuple):
+    def __init__(self, block_size: int, window_size: int, color: tuple, body: list):
         self.block_size = block_size
         self.window_size = window_size
         self.color = color
@@ -150,7 +168,7 @@ class Wall:
         self.reset(body=body)
 
     def reset(self, body: list) -> None:
-        self.length = 5
+        self.length = 0
         self.segments = []
 
         for i in range(self.length):
@@ -163,23 +181,13 @@ class Wall:
         num_blocks = self.window_size//self.block_size
         pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size
 
-        direction = np.random.randint(0, 2)
-        if direction == 0:  # right
-            step = np.array((self.block_size, 0))
-        else:  # down
-            step = np.array((0, self.block_size))
-
-        new_pos = pos + step
-
-        # if pos or new_pos is equal to any segment of the body, we generate another pos and new_pos
-        while (pos == body).all(axis=1).any() or (new_pos == body).all(axis=1).any():
+        # if pos or new_pos is equal to any segment of the body, we generate another segment
+        while (pos == body).all(axis=1).any:
             pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size
-            new_pos = pos + step
 
         pos = tuple(pos)
-        new_pos = tuple(new_pos)
         self.segments.append(pos)
-        self.segments.append(new_pos)
+        self.length += 1
 
     def render(self, surface):
         for segment in self.segments:
