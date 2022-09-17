@@ -178,15 +178,26 @@ class Wall:
         # Note: a segment is two blocks large
 
         body = np.array(body, dtype='int')
-        num_blocks = self.window_size//self.block_size
-        pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size
+        num_blocks = self.window_size // self.block_size
+        pos = np.random.randint(1, num_blocks - 1, size=2, dtype='int') * self.block_size
 
-        # if pos or new_pos is equal to any segment of the body, we generate another segment
-        while (pos == body).all(axis=1).any:
-            pos = np.random.randint(1, num_blocks-1, size=2, dtype='int') * self.block_size
+        direction = np.random.randint(0, 2)
+        if direction == 0:  # right
+            step = np.array((self.block_size, 0))
+        else:  # down
+            step = np.array((0, self.block_size))
+
+        new_pos = pos + step
+
+        # if pos or new_pos is equal to any segment of the body, we generate another pos and new_pos
+        while (pos == body).all(axis=1).any() or (new_pos == body).all(axis=1).any():
+            pos = np.random.randint(1, num_blocks - 1, size=2, dtype='int') * self.block_size
+            new_pos = pos + step
 
         pos = tuple(pos)
+        new_pos = tuple(new_pos)
         self.segments.append(pos)
+        self.segments.append(new_pos)
         self.length += 1
 
     def render(self, surface):

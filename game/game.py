@@ -29,10 +29,12 @@ while run:
         snake.change_direction(Direction.UP)
 
     snake.move()
-    if snake.eat_check(fruit, walls.segments):
+    if snake.eat_check(fruit):
         score += 1
         if score % 3 == 0 and score > 0:
             walls.add_segment(body=snake.body)
+
+        fruit.reset(body=snake.body, walls=walls.segments)
 
     if snake.is_dead(walls.segments):
         font = pygame.font.SysFont('ariel', 40, True)

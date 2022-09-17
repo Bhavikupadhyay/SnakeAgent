@@ -26,38 +26,36 @@ model = A2C(
     policy='CnnPolicy',
     env=env,
     verbose=1,
-    learning_rate=7e-4,
+    learning_rate=5e-5,
     gae_lambda=0.99,
     n_steps=64,
-    rms_prop_eps=0.1,
-    ent_coef=0.1,
-    vf_coef=1,
+    ent_coef=0.001,
     normalize_advantage=True,
-    tensorboard_log='../../logs/a2c2/log',
+    tensorboard_log='../../logs/a2c1/log',
     policy_kwargs=policy_kwargs,
     create_eval_env=True,
     device=device
 )
 
-if os.path.exists('a2c2.zip'):
-    model = A2C.load('a2c2', env, verbose=1, device=device)
+if os.path.exists('a2c1.zip'):
+    model = A2C.load('a2c1', env, verbose=1, device=device)
 
 
-checkpoint_callback = CheckpointCallback(save_freq=500000, save_path='../../logs/a2c2/chck/')
-eval_callback = EvalCallback(env, best_model_save_path="../../logs/a2c2/best/", eval_freq=500)
+checkpoint_callback = CheckpointCallback(save_freq=500000, save_path='../../logs/a2c1/chck/')
+eval_callback = EvalCallback(env, best_model_save_path="../../logs/a2c1/best/", eval_freq=500)
 tensorboard_callback = TensorboardCallback(env)
 callback_list = CallbackList([checkpoint_callback, eval_callback, tensorboard_callback])
 
 model.learn(
-    total_timesteps=500000,
+    total_timesteps=2000000,
     callback=callback_list,
     tb_log_name='run',
     log_interval=100,
-    eval_log_path='../logs/a2c2/eval/',
+    eval_log_path='../logs/a2c1/eval/',
     reset_num_timesteps=False
 )
 
-model.save('a2c2')
+model.save('a2c1')
 print('Model Saved')
 
 mean_reward, std_reward = evaluate_policy(

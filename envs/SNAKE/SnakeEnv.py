@@ -9,7 +9,7 @@ import numpy as np
 class SnakeEnv(gym.Env):
     metadata = {
         'render_modes': ['human', 'rgb_array'],
-        'render_fps': 24
+        'render_fps': 12
     }
 
     colors = {
@@ -78,7 +78,7 @@ class SnakeEnv(gym.Env):
             reward = -1
             # higher negative reward for entering into a loop
             if self.step_count - self.step_count >= 300:
-                reward = -5
+                reward -= 5
             self.log_score()
         else:
             reward = self._get_reward()
@@ -103,6 +103,7 @@ class SnakeEnv(gym.Env):
 
             # updating the score and adding another wall segment if the score is a multiple of 5
             self.score += 1
+
             if self.score > 0 and self.score % 3 == 0:
                 self.walls.add_segment(self.snake.body)
 
@@ -111,8 +112,6 @@ class SnakeEnv(gym.Env):
         # increasing negative reward if food is not eaten for a few steps
         steps_since_food = self.step_count - self.last_eaten
         divisor = 15 * self.snake.length
-        if steps_since_food % divisor == 0 and steps_since_food > divisor:
-            print(steps_since_food)
         reward -= 0.1 * (steps_since_food // divisor)
 
         # reward according to danger ahead
